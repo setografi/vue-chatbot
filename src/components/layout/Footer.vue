@@ -10,9 +10,9 @@
 <style scoped lang="scss">
 .footer {
   text-align: start;
-  padding: 1rem 0;
+  padding: 0.25rem 0rem 1rem 0rem;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
 
   &__link {
     color: var(--text-color);

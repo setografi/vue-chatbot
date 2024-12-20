@@ -11,6 +11,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "groq-sdk": "^0.9.1",
+    "pinia": "^2.3.0",
     "vue": "^3.4.15"
   },
   "devDependencies": {
