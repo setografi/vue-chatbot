@@ -49,6 +49,7 @@ const onSubmit = async (e) => {
           <h2 :class="['generator__role', answer.role === 'assistant' ? 'ai' : 'user']">
             {{ answer.role === 'assistant' ? 'AI' : 'You' }}
           </h2>
+
           <p
             :class="[
               'generator__message',
@@ -69,7 +70,7 @@ const onSubmit = async (e) => {
         />
         <button class="generator__send-btn">Send</button>
         <button class="generator__clipboard-btn">
-          <span>Clipboard</span>
+          <span>File</span>
         </button>
       </form>
     </div>
@@ -106,8 +107,8 @@ const onSubmit = async (e) => {
 
       .generator__role {
         font-size: var(--font-size-sm);
-        padding: 10px 0px 10px 0px;
         font-weight: bold;
+        padding: 0.25rem 0.75rem;
 
         &.ai {
           color: #fff;
@@ -123,7 +124,7 @@ const onSubmit = async (e) => {
         max-width: 80%;
         word-wrap: break-word;
         font-size: var(--font-size-base);
-        padding: 10px;
+        padding: 0.5rem 0.75rem;
         border-radius: 8px;
 
         &.ai-message {
@@ -171,7 +172,7 @@ const onSubmit = async (e) => {
     background: var(--input-bg);
     border: none;
     color: var(--text-color);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     padding: 1rem;
     border-radius: 4px;
 
@@ -183,28 +184,28 @@ const onSubmit = async (e) => {
   &__send-btn {
     background: var(--primary-color);
     color: var(--text-color);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     border: none;
     padding: 1rem 1.5rem;
     border-radius: 4px;
     cursor: pointer;
 
     &:hover {
-      opacity: 0.9;
+      opacity: 0.8;
     }
   }
 
   &__clipboard-btn {
     background: var(--primary-color);
     border: none;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     color: var(--text-color);
     padding: 1rem 1.5rem;
     border-radius: 4px;
     cursor: pointer;
 
     &:hover {
-      opacity: 0.9;
+      opacity: 0.8;
     }
   }
 }
