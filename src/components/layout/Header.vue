@@ -2,9 +2,12 @@
   <header class="header">
     <div class="header__logo">
       <img src="../../assets/logo.svg" alt="Bot Icon" />
-      <h1>ChatAI <span>Demo</span></h1>
+      <div class="header__logo__title">
+        <h1>MIRA</h1>
+        <span>“Mindful Interactive Relaxed Assistant”</span>
+      </div>
     </div>
-    <div class="header__subtitle">Based on Llama3.</div>
+    <div class="header__subtitle">Based on Openai/GPT.</div>
   </header>
 </template>
 
@@ -15,19 +18,25 @@
 
   &__logo {
     display: flex;
-    flex-direction: column;
-    align-items: start;
-    justify-content: center;
+    flex-direction: row;
+    align-items: center;
+    justify-content: start;
     gap: 1rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 2rem;
 
     img {
       width: 40px;
       height: 40px;
     }
 
-    h1 {
-      font-size: var(--font-size-3xl);
+    &__title {
+      display: flex;
+      flex-direction: column;
+      gap: 0.1rem;
+
+      h1 {
+        font-size: var(--font-size-3xl);
+      }
 
       span {
         color: var(--accent-color);

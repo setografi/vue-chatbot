@@ -47,7 +47,7 @@ const onSubmit = async (e) => {
           class="generator__chat-message"
         >
           <h2 :class="['generator__role', answer.role === 'assistant' ? 'ai' : 'user']">
-            {{ answer.role === 'assistant' ? 'AI' : 'You' }}
+            {{ answer.role === 'assistant' ? 'Mira' : 'You' }}
           </h2>
 
           <p

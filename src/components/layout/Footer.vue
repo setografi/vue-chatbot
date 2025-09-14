@@ -1,9 +1,6 @@
 <template>
   <footer class="footer">
-    <p>
-      Made by <a href="#" class="footer__link">Setografi</a> |
-      <a href="#" class="footer__link">Github</a>
-    </p>
+    <p>Made by <a href="https://github.com/setografi" class="footer__link">Setografi</a></p>
   </footer>
 </template>
 
