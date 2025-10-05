@@ -8,10 +8,11 @@ body {
 }
 
 .chat-container {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  max-width: 48rem;
+  // max-width: 48rem;
   margin: 0 auto;
   padding: 2rem;
 }

@@ -4,17 +4,19 @@
       <img src="../../assets/logo.svg" alt="Bot Icon" />
       <div class="header__logo__title">
         <h1>MIRA</h1>
-        <span>“Mindful Interactive Relaxed Assistant”</span>
+        <span>“Mindful Interactive Relaxed Ally”</span>
       </div>
     </div>
-    <div class="header__subtitle">Based on Openai/GPT.</div>
+    <!-- <div class="header__subtitle">Based on Openai/GPT.</div> -->
   </header>
 </template>
 
 <style scoped lang="scss">
 .header {
+  position: absolute;
   text-align: start;
-  padding: 1rem 0rem 0.25rem 0rem;
+  padding: 1rem 1rem 1rem 1rem;
+  z-index: 20;
 
   &__logo {
     display: flex;
@@ -22,7 +24,7 @@
     align-items: center;
     justify-content: start;
     gap: 1rem;
-    margin-bottom: 2rem;
+    // margin-bottom: 2rem;
 
     img {
       width: 40px;
@@ -36,6 +38,7 @@
 
       h1 {
         font-size: var(--font-size-3xl);
+        color: var(--text-color);
       }
 
       span {
@@ -44,9 +47,9 @@
     }
   }
 
-  &__subtitle {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: var(--font-size-base);
-  }
+  // &__subtitle {
+  //   color: var(--text-color);
+  //   font-size: var(--font-size-base);
+  // }
 }
 </style>

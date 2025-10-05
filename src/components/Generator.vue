@@ -35,11 +35,6 @@ const onSubmit = async (e) => {
 <template>
   <section class="generator">
     <div class="generator__content">
-      <button class="generator__system-btn">
-        <span>+</span>
-        Add System Role
-      </button>
-
       <div class="generator__chat">
         <div
           v-for="(answer, index) in answersStore.displayAnswers"
@@ -69,9 +64,6 @@ const onSubmit = async (e) => {
           class="generator__input"
         />
         <button class="generator__send-btn">Send</button>
-        <button class="generator__clipboard-btn">
-          <span>File</span>
-        </button>
       </form>
     </div>
   </section>
@@ -90,13 +82,8 @@ const onSubmit = async (e) => {
   }
 
   &__chat {
-    // height: 5rem;
     max-height: 20rem;
     overflow-y: auto;
-    // padding: 10px;
-    // border-radius: 10px;
-    // border: 1px solid rgba(255, 255, 255, 0.2);
-    // margin-bottom: 1rem;
 
     .generator__chat-message {
       max-width: 100%;
@@ -128,7 +115,6 @@ const onSubmit = async (e) => {
         border-radius: 8px;
 
         &.ai-message {
-          // background: var(--input-bg);
           color: #fff;
           text-align: left;
           align-self: flex-start;
@@ -141,24 +127,6 @@ const onSubmit = async (e) => {
           align-self: flex-end;
         }
       }
-    }
-  }
-
-  &__system-btn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: var(--text-color);
-    font-size: var(--font-size-sm);
-    padding: 0.5rem 1rem;
-    border-radius: 8px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.1);
     }
   }
 
@@ -186,20 +154,6 @@ const onSubmit = async (e) => {
     color: var(--text-color);
     font-size: var(--font-size-base);
     border: none;
-    padding: 1rem 1.5rem;
-    border-radius: 4px;
-    cursor: pointer;
-
-    &:hover {
-      opacity: 0.8;
-    }
-  }
-
-  &__clipboard-btn {
-    background: var(--primary-color);
-    border: none;
-    font-size: var(--font-size-base);
-    color: var(--text-color);
     padding: 1rem 1.5rem;
     border-radius: 4px;
     cursor: pointer;

@@ -6,9 +6,10 @@
 
 <style scoped lang="scss">
 .footer {
-  text-align: start;
-  padding: 0.25rem 0rem 1rem 0rem;
-  color: rgba(255, 255, 255, 0.7);
+  text-align: end;
+  font-weight: 600;
+  padding: 1rem 1rem 1rem 1rem;
+  color: var(--text-color);
   font-size: var(--font-size-sm);
 
   &__link {
