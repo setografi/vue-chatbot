@@ -1,0 +1,15 @@
+{
+  "name": "mira-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "mira_wasm_bg.wasm",
+    "mira_wasm.js",
+    "mira_wasm.d.ts"
+  ],
+  "main": "mira_wasm.js",
+  "types": "mira_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
