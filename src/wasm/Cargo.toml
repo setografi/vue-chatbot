@@ -14,6 +14,6 @@ serde-wasm-bindgen = "0.6"
 regex = "1.10"
 
 [profile.release]
-opt-level = "z"     # Optimize for size
-lto = true          # Link Time Optimization
-codegen-units = 1   # Better optimization
+opt-level = "z"     
+lto = true          
+codegen-units = 1   

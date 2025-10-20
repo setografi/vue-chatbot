@@ -473,7 +473,7 @@ watch(
     if (answers.length > 5 && answersStore.wasmEnabled) {
       try {
         const messages = answers.map((a) => a.content)
-        const topics = wasmCore.extract_topics(messages)
+        const topics = await answersStore.extractTopics(messages)
         sessionStorage.setItem('mira_topics', JSON.stringify(topics))
         console.log('📚 Topics updated:', topics)
       } catch (error) {
@@ -527,7 +527,7 @@ watch(showHistory, async (newVal) => {
 })
 
 function handleScoreUpdate(score) {
-  // console.log('🎮 Game score:', score)
+  console.log('🎮 Game score:', score)
 
   // Optional: MIRA bisa kasih komen soal score
   if (score.streak >= 3) {
