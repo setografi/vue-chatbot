@@ -22,6 +22,10 @@
       </div>
     </div>
 
+    <button class="mira-vn__game-btn" @click="showMiniGame = true" :aria-label="'Mini Game'">
+      🎮
+    </button>
+
     <!-- History Button (Top Right) -->
     <button
       class="mira-vn__history-btn"
@@ -136,6 +140,12 @@
         </div>
       </div>
     </transition>
+
+    <MiniGame
+      :is-active="showMiniGame"
+      @close="showMiniGame = false"
+      @score-update="handleScoreUpdate"
+    />
   </div>
 </template>
 
@@ -143,6 +153,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useAnswersStore, humanizeResponse } from '@/stores/answers'
 import { getRespondAnswer } from '@/api/index'
+
+import MiniGame from './common/MiniGame.vue'
 
 // Refs
 const canvas = ref(null)
@@ -155,6 +167,7 @@ const showHistory = ref(false)
 const isTyping = ref(false)
 const isSpeaking = ref(false)
 const currentExpression = ref('default')
+const showMiniGame = ref(false)
 
 // Store
 const answersStore = useAnswersStore()
@@ -219,28 +232,28 @@ async function ensureDependencies() {
 }
 
 // ===== LIVE2D SETUP =====
-function makeDraggable(m) {
-  m.buttonMode = true
-  const onDown = (e) => {
-    m.dragging = true
-    m._pointerX = e.data.global.x - m.x
-    m._pointerY = e.data.global.y - m.y
-  }
-  const onMove = (e) => {
-    if (m.dragging) {
-      m.position.x = e.data.global.x - m._pointerX
-      m.position.y = e.data.global.y - m._pointerY
-    }
-  }
-  const onUp = () => (m.dragging = false)
+// function makeDraggable(m) {
+//   m.buttonMode = true
+//   const onDown = (e) => {
+//     m.dragging = true
+//     m._pointerX = e.data.global.x - m.x
+//     m._pointerY = e.data.global.y - m.y
+//   }
+//   const onMove = (e) => {
+//     if (m.dragging) {
+//       m.position.x = e.data.global.x - m._pointerX
+//       m.position.y = e.data.global.y - m._pointerY
+//     }
+//   }
+//   const onUp = () => (m.dragging = false)
 
-  m.on('pointerdown', onDown)
-  m.on('pointermove', onMove)
-  m.on('pointerup', onUp)
-  m.on('pointerupoutside', onUp)
+//   m.on('pointerdown', onDown)
+//   m.on('pointermove', onMove)
+//   m.on('pointerup', onUp)
+//   m.on('pointerupoutside', onUp)
 
-  m._live2d_listeners = { onDown, onMove, onUp }
-}
+//   m._live2d_listeners = { onDown, onMove, onUp }
+// }
 
 function addFrame(m) {
   const fg = PIXI.Sprite.from(PIXI.Texture.WHITE)
@@ -337,15 +350,14 @@ function detectExpression(text) {
   return 'default'
 }
 
-// ===== CHAT HANDLING =====
 const onSubmit = async () => {
   if (prompt.value.trim() === '' || isTyping.value) return
 
   const userMessage = prompt.value
 
-  // Detect mood from user input
-  const detectedMood = answersStore.adjustMoodContext(userMessage)
-  console.log('Detected mood:', detectedMood) // Debug
+  // 🦀 WASM-powered mood detection
+  await answersStore.adjustMoodContext(userMessage)
+  console.log('Current mood:', answersStore.currentMood)
 
   answersStore.addAnswer('user', userMessage)
   prompt.value = ''
@@ -353,15 +365,14 @@ const onSubmit = async () => {
   isTyping.value = true
 
   try {
-    // const response = await getRespondAnswer(answersStore.getMessages())
     const response = await getRespondAnswer(answersStore.getMessagesWithMood())
     let assistantMessage = response.choices[0].message.content
 
-    // Humanize response (polish AI response)
-    assistantMessage = humanizeResponse(assistantMessage)
+    // 🦀 WASM-powered humanize
+    assistantMessage = await humanizeResponse(assistantMessage)
 
-    // Detect expression from response
-    const detectedExpression = detectExpression(assistantMessage)
+    // 🦀 WASM-powered expression detection (sentiment-aware)
+    const detectedExpression = await answersStore.detectExpression(assistantMessage)
     setExpression(detectedExpression)
 
     startLipSync()
@@ -384,14 +395,23 @@ const onSubmit = async () => {
     isTyping.value = false
     stopLipSync()
 
-    // Natural Fallback
+    // 🦀 Use WASM offline response
+    const offlineMessage = await answersStore.getOfflineResponse()
     answersStore.addAnswer('assistant', 'Ups, connection error nih. Coba lagi ya?')
     setExpression('surprised')
   }
 }
 
-// ===== LIFECYCLE =====
 onMounted(async () => {
+  // Initialize WASM first
+  await answersStore.initializeWasm()
+  console.log('WASM enabled:', answersStore.wasmEnabled)
+
+  const savedTopics = sessionStorage.getItem('mira_topics')
+  if (savedTopics) {
+    console.log('📚 Loaded topics:', JSON.parse(savedTopics))
+  }
+
   try {
     await ensureDependencies()
 
@@ -414,7 +434,7 @@ onMounted(async () => {
     model.x = window.innerWidth / 2 - model.width / 2
     model.y = window.innerHeight * 0.05
 
-    makeDraggable(model)
+    // makeDraggable(model)
     addFrame(model)
     addHitAreaFrames(model)
     model.interactive = true
@@ -443,9 +463,26 @@ onMounted(async () => {
     }
     window.addEventListener('resize', handleResize)
   } catch (err) {
-    console.error('Failed to initialize Live2D:', err)
+    console.error('Failed to initialize:', err)
   }
 })
+
+watch(
+  () => answersStore.displayAnswers,
+  async (answers) => {
+    if (answers.length > 5 && answersStore.wasmEnabled) {
+      try {
+        const messages = answers.map((a) => a.content)
+        const topics = wasmCore.extract_topics(messages)
+        sessionStorage.setItem('mira_topics', JSON.stringify(topics))
+        console.log('📚 Topics updated:', topics)
+      } catch (error) {
+        console.warn('Topic extraction failed:', error)
+      }
+    }
+  },
+  { deep: true },
+)
 
 onBeforeUnmount(() => {
   stopLipSync()
@@ -488,6 +525,15 @@ watch(showHistory, async (newVal) => {
     }
   }
 })
+
+function handleScoreUpdate(score) {
+  // console.log('🎮 Game score:', score)
+
+  // Optional: MIRA bisa kasih komen soal score
+  if (score.streak >= 3) {
+    answersStore.addAnswer('assistant', `Wah streak ${score.streak}! Kamu jago banget! 🔥`)
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -560,13 +606,37 @@ watch(showHistory, async (newVal) => {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    // box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     transition: all 0.3s ease;
     z-index: 10;
 
     &:hover {
       transform: scale(1.1);
       // background: var(--accent-color-2);
+    }
+  }
+
+  .mira-vn__game-btn {
+    position: absolute;
+    top: 1.5rem;
+    right: 5rem; // Sebelah kiri history button
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+    transition: all 0.3s ease;
+    z-index: 10;
+
+    &:hover {
+      transform: scale(1.1) rotate(10deg);
     }
   }
 
@@ -605,7 +675,7 @@ watch(showHistory, async (newVal) => {
     font-weight: 700;
     font-size: 0.9rem;
     letter-spacing: 1px;
-    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
+    // box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.2);
   }
 
   &__speaking-indicator {
@@ -622,7 +692,7 @@ watch(showHistory, async (newVal) => {
     min-height: 120px;
     display: flex;
     align-items: center;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    // box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     margin-bottom: 1rem;
   }
 
@@ -670,7 +740,7 @@ watch(showHistory, async (newVal) => {
     font-size: 1rem;
     padding: 1rem 1.5rem;
     border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    // box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     transition: all 0.3s ease;
 
     &::placeholder {
@@ -693,7 +763,7 @@ watch(showHistory, async (newVal) => {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: var(--accent-color-2);
+    background: var(--accent-color);
     border: none;
     color: var(--bg-color);
     cursor: pointer;
@@ -701,14 +771,14 @@ watch(showHistory, async (newVal) => {
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    // box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 
     &:hover:not(:disabled) {
       transform: scale(1.1);
     }
 
     &:disabled {
-      opacity: 0.5;
+      // opacity: 0.5;
       cursor: not-allowed;
     }
   }
@@ -738,7 +808,7 @@ watch(showHistory, async (newVal) => {
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    // box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   }
 
   &__history-header {

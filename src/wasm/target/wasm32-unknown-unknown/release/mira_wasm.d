@@ -1,0 +1,1 @@
+C:\Users\indri\OneDrive\Documents\SETO\ File\Coding\vue-web\vuetest\src\wasm\target\wasm32-unknown-unknown\release\mira_wasm.wasm: C:\Users\indri\OneDrive\Documents\SETO\ File\Coding\vue-web\vuetest\src\wasm\src\lib.rs

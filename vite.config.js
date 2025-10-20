@@ -19,4 +19,16 @@ export default defineConfig({
       },
     },
   },
+
+  optimizeDeps: {
+    exclude: ['@/wasm/pkg'],
+  },
+
+  server: {
+    fs: {
+      allow: ['..'],
+    },
+  },
+
+  assetsInclude: ['**/*.wasm'],
 })
