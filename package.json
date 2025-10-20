@@ -10,7 +10,7 @@
     "format": "prettier --write src/",
     "wasm:build": "cd src/wasm && wasm-pack build --target web --out-dir pkg --release && cd ../..",
     "build-only": "vite build",
-    "build": "bash build-wasm.sh"
+    "build": "bash build-wasm.sh || npm run build-only"
   },
   "dependencies": {
     "groq-sdk": "^0.9.1",
