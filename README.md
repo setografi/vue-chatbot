@@ -58,6 +58,5 @@ mira-chat/
 ├── node_modules/
 ├── package.json
 ├── vite.config.js
-├── build-wasm.sh
 └── README.md
 ```
