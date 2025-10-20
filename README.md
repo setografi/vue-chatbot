@@ -33,3 +33,31 @@ npm run build
 ```sh
 npm run lint
 ```
+
+```
+mira-chat/
+├── src/
+│   ├── api/
+│   │   └── index.js
+│   ├── components/
+│   │   └── MiraChat.vue
+│   ├── config/
+│   ├── lib/
+│   ├── pages/
+│   ├── stores/
+│   │   └── answers.js
+│   ├── wasm/
+│   │   ├── Cargo.toml
+│   │   ├── Cargo.lock
+│   │   ├── src/
+│   │   │   └── lib.rs
+│   │   ├── pkg/
+│   ├── App.vue
+│   └── main.js
+├── public/
+├── node_modules/
+├── package.json
+├── vite.config.js
+├── build-wasm.sh
+└── README.md
+```

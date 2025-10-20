@@ -33,4 +33,5 @@ coverage
 .env.local
 .env.*.local
 
-
+src/wasm/pkg/
+src/wasm/target/
