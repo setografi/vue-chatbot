@@ -29,6 +29,7 @@
     "sass-embedded": "^1.83.0",
     "sass-loader": "^16.0.4",
     "vite": "^7.1.9",
-    "vite-plugin-vue-devtools": "^8.0.2"
+    "vite-plugin-vue-devtools": "^8.0.2",
+    "wasm-pack": "^0.13.1"
   }
 }
