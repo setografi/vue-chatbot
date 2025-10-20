@@ -1,13 +1,20 @@
 #!/bin/bash
 # build-wasm.sh
 
-set -e 
+set -e  # stop kalau ada error
 
 echo "🦀 Building Rust WASM module..."
 
+# Cek apakah wasm-pack sudah terpasang
+if ! command -v wasm-pack &> /dev/null
+then
+    echo "⚙️ wasm-pack not found, installing..."
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+fi
+
 cd src/wasm
 
-# Build dengan wasm-pack
+# Build WASM package
 wasm-pack build --target web --out-dir pkg --release
 
 echo "✅ WASM build complete!"
