@@ -37,13 +37,22 @@ npm run lint
 ```
 mira-chat/
 ├── src/
+│   ├── assets/
+│   │   ├── base.scss
+│   │   └── main.scss
 │   ├── api/
 │   │   └── index.js
 │   ├── components/
+│   │   ├── common
+│   │   │   └── MiniGame.vue
+│   │   ├── layout
+│   │   │   ├── Header.vue
+│   │   │   └── Layout.vue
 │   │   └── MiraChat.vue
 │   ├── config/
-│   ├── lib/
+│   │   └── env.js
 │   ├── pages/
+│   │   └── Home.vue
 │   ├── stores/
 │   │   └── answers.js
 │   ├── wasm/

@@ -17,7 +17,10 @@
           <input type="checkbox" id="hitAreaFrames" v-model="showHitAreaFrames" />
           <label for="hitAreaFrames">Hit Area Frames</label>
         </p>
-        <p>Expression: {{ currentExpression }}</p>
+        <p>
+          Expression: {{ currentExpression }} ({{ expressionBlend?.blendStrength?.toFixed(2) }})
+        </p>
+        <p>Mood: {{ answersStore.currentMood }} (Intensity: {{ emotionIntensity.toFixed(2) }})</p>
         <p>Speaking: {{ isSpeaking }}</p>
       </div>
     </div>
@@ -141,6 +144,13 @@
       </div>
     </transition>
 
+    <!-- Toast Notification -->
+    <transition name="toast-slide">
+      <div v-if="toast.visible" :class="['mira-vn__toast', `mira-vn__toast--${toast.type}`]">
+        {{ toast.message }}
+      </div>
+    </transition>
+
     <MiniGame
       :is-active="showMiniGame"
       @close="showMiniGame = false"
@@ -156,7 +166,7 @@ import { getRespondAnswer } from '@/api/index'
 
 import MiniGame from './common/MiniGame.vue'
 
-// Refs
+// ========== REFS ==========
 const canvas = ref(null)
 const historyContainer = ref(null)
 const prompt = ref('')
@@ -166,13 +176,34 @@ const showHitAreaFrames = ref(false)
 const showHistory = ref(false)
 const isTyping = ref(false)
 const isSpeaking = ref(false)
-const currentExpression = ref('default')
+const currentExpression = ref('f01')
 const showMiniGame = ref(false)
+const emotionIntensity = ref(0)
+const expressionBlend = ref(null)
+
+// Animation loop
+let animationFrameId = null
+let isAnimating = false
 
 // Store
 const answersStore = useAnswersStore()
 
-// Computed: Ambil pesan MIRA terakhir saja
+// ========== TOAST NOTIFICATION SYSTEM ==========
+const toast = ref({
+  message: '',
+  type: 'info', // 'info', 'warning', 'error', 'success'
+  visible: false,
+})
+
+function showToast(message, type = 'info', duration = 2500) {
+  toast.value = { message, type, visible: true }
+  console.log(`📢 Toast [${type}]: ${message}`)
+  setTimeout(() => {
+    toast.value.visible = false
+  }, duration)
+}
+
+// ========== COMPUTED ==========
 const currentMiraMessage = computed(() => {
   const miraMessages = answersStore.displayAnswers.filter((msg) => msg.role === 'assistant')
   return miraMessages.length > 0
@@ -180,25 +211,327 @@ const currentMiraMessage = computed(() => {
     : 'Halo! Aku MIRA, temen ngobrol kamu. Ada yang mau diceritain?'
 })
 
-// Live2D Variables
+// ========== LIVE2D SETUP ==========
 let PIXI = null
 let live2d = null
 let app = null
 let model = null
-let lipSyncInterval = null
 
 const modelUrl =
   'https://cdn.jsdelivr.net/gh/guansss/pixi-live2d-display/test/assets/shizuku/shizuku.model.json'
 
-// Expression Mapping
-const expressionMap = {
-  happy: ['senang', 'haha', 'wkwk', 'lucu', 'mantap', 'seru'],
-  sad: ['sedih', 'galau', 'down', 'nangis'],
-  surprised: ['wow', 'gila', 'astaga', 'serius', 'beneran'],
-  default: ['happy'],
+// ========== EXPRESSION TRANSITION SYSTEM ==========
+class ExpressionTransition {
+  constructor(fromExpression, toExpression, durationMs = 300) {
+    this.fromExpression = fromExpression
+    this.toExpression = toExpression
+    this.duration = durationMs
+    this.startTime = Date.now()
+    this.isComplete = false
+  }
+
+  // Cubic easing (ease-in-out-cubic)
+  easeCubic(t) {
+    if (t < 0.5) {
+      return 4 * t * t * t
+    } else {
+      return 1 - Math.pow(-2 * t + 2, 3) / 2
+    }
+  }
+
+  update(currentTime) {
+    const elapsed = currentTime - this.startTime
+    const progress = Math.min(elapsed / this.duration, 1.0)
+
+    // Apply cubic easing
+    const easedProgress = this.easeCubic(progress)
+
+    if (progress >= 1.0) {
+      this.isComplete = true
+      return { targetExpression: this.toExpression, blendProgress: 1.0 }
+    }
+
+    return {
+      targetExpression: this.toExpression,
+      blendProgress: easedProgress,
+    }
+  }
 }
 
-// ===== DEPENDENCY LOADING =====
+let activeTransition = null
+const expressionQueue = ref([])
+
+// ========== OPTIMIZED EXPRESSION QUEUE ==========
+class OptimizedExpressionQueue {
+  constructor(maxSize = 5) {
+    this.queue = []
+    this.maxSize = maxSize
+  }
+
+  enqueue(expression, duration = 300) {
+    // Jangan add duplicate ekspresi yang sama berturut-turut
+    if (this.queue.length > 0) {
+      const lastItem = this.queue[this.queue.length - 1]
+      if (lastItem.expression === expression) {
+        lastItem.duration = Math.max(lastItem.duration, duration)
+        console.log('🎭 Expression updated (deduplicate):', expression)
+        return
+      }
+    }
+
+    // Jika queue penuh, hapus yang paling lama
+    if (this.queue.length >= this.maxSize) {
+      const removed = this.queue.shift()
+      console.warn('🎭 Queue full, removed oldest:', removed.expression)
+    }
+
+    this.queue.push({ expression, duration })
+    console.log('🎭 Expression queued:', expression, '| Queue size:', this.queue.length)
+  }
+
+  dequeue() {
+    return this.queue.shift()
+  }
+
+  isEmpty() {
+    return this.queue.length === 0
+  }
+
+  size() {
+    return this.queue.length
+  }
+}
+
+// Initialize queue
+const expressionQueueManager = new OptimizedExpressionQueue(5)
+
+function queueExpression(newExpression, durationMs = 300) {
+  if (activeTransition && !activeTransition.isComplete) {
+    expressionQueueManager.enqueue(newExpression, durationMs)
+  } else {
+    const fromExpr = currentExpression.value
+    activeTransition = new ExpressionTransition(fromExpr, newExpression, durationMs)
+    console.log(`🎭 Transition started: ${fromExpr} → ${newExpression}`)
+  }
+}
+
+function updateExpressions() {
+  if (activeTransition && !activeTransition.isComplete) {
+    const now = Date.now()
+    const state = activeTransition.update(now)
+
+    // Set expression saat progress >= 0.9 (untuk smooth transition)
+    if (state.blendProgress >= 0.9) {
+      setExpressionDirect(state.targetExpression)
+    }
+
+    if (activeTransition.isComplete) {
+      setExpressionDirect(activeTransition.toExpression)
+      currentExpression.value = activeTransition.toExpression
+      console.log('🎭 Expression transition complete:', activeTransition.toExpression)
+      activeTransition = null
+
+      // Process queued expressions
+      if (!expressionQueueManager.isEmpty()) {
+        const next = expressionQueueManager.dequeue()
+        queueExpression(next.expression, next.duration)
+      }
+    }
+  }
+}
+
+// ========== LIP SYNC ENHANCEMENT ==========
+let lipSyncInterval = null
+
+function calculateSpeakingDuration(text, baseWPM = 160) {
+  const wordCount = text.trim().split(/\s+/).length
+  const baseDuration = (wordCount / baseWPM) * 60000
+
+  // Add variance untuk natural feel (±10%)
+  const variance = Math.random() * 0.2 - 0.1
+  return Math.max(baseDuration * (1 + variance), 1000)
+}
+
+function calculateOptimalLipSyncDuration(text) {
+  // Indonesian average WPM = 140 (slightly faster than English)
+  const indonesianAvgWPM = 140
+  const wordCount = text.trim().split(/\s+/).length
+
+  // Base duration
+  const baseDuration = (wordCount / indonesianAvgWPM) * 60000
+
+  // Factor in punctuation pauses
+  const punctuation = text.match(/[.,!?;:]/g) || []
+  const pauseFactor = punctuation.length * 0.15 // Each punctuation = 150ms pause
+
+  const withPauses = baseDuration + pauseFactor * 1000
+
+  // Add realistic variance (±5%)
+  const variance = (Math.random() - 0.5) * 0.1
+  const finalDuration = withPauses * (1 + variance)
+
+  // Minimum duration untuk clarity
+  return Math.max(finalDuration, 800)
+}
+
+function startLipSyncAdvanced(durationMs, intensity = 1.0) {
+  if (lipSyncInterval) clearInterval(lipSyncInterval)
+
+  isSpeaking.value = true
+  const startTime = Date.now()
+  const mouthOpenRange = [0.2, 0.8]
+
+  lipSyncInterval = setInterval(() => {
+    const elapsed = Date.now() - startTime
+    const progress = Math.min(elapsed / durationMs, 1.0)
+
+    if (model && model.internalModel && progress < 1.0) {
+      try {
+        const mouthParam = model.internalModel.coreModel?.getParamIndex('PARAM_MOUTH_OPEN_Y') ?? -1
+
+        if (mouthParam !== -1) {
+          // Sine wave untuk natural mouth movement
+          const mouthOpen =
+            mouthOpenRange[0] +
+            (mouthOpenRange[1] - mouthOpenRange[0]) *
+              (0.5 + 0.5 * Math.sin(progress * Math.PI * 8 - Math.PI / 2))
+
+          model.internalModel.coreModel.setParamFloat(mouthParam, mouthOpen * intensity)
+        }
+      } catch (e) {
+        console.warn('Lip sync failed:', e)
+      }
+    } else {
+      stopLipSyncAdvanced()
+    }
+  }, 50) // More frequent updates untuk smoothness
+}
+
+function stopLipSyncAdvanced() {
+  if (lipSyncInterval) {
+    clearInterval(lipSyncInterval)
+    lipSyncInterval = null
+  }
+
+  isSpeaking.value = false
+
+  if (model && model.internalModel) {
+    try {
+      const mouthParam = model.internalModel.coreModel?.getParamIndex('PARAM_MOUTH_OPEN_Y') ?? -1
+      if (mouthParam !== -1) {
+        model.internalModel.coreModel.setParamFloat(mouthParam, 0)
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+}
+
+// ========== MICRO-EXPRESSION SYSTEM ==========
+function triggerBlink(duration = 100) {
+  if (!model || !model.internalModel) return
+
+  try {
+    const eyeParam = model.internalModel.coreModel?.getParamIndex('PARAM_EYE_OPEN_Y') ?? -1
+    if (eyeParam !== -1) {
+      model.internalModel.coreModel.setParamFloat(eyeParam, 0)
+      setTimeout(() => {
+        model.internalModel.coreModel.setParamFloat(eyeParam, 1)
+      }, duration)
+    }
+  } catch (e) {
+    console.warn('Blink failed:', e)
+  }
+}
+
+function addMicroExpression(emotionCategory) {
+  const microExpressions = {
+    positive_high: () => {
+      triggerBlink()
+      setTimeout(() => triggerHeadNod(), 100)
+    },
+    negative_high: () => {
+      triggerSlowBlink()
+    },
+    curious: () => {
+      triggerQuickBlink()
+      playMotion('flick_head')
+    },
+    default: () => {
+      // subtle blink only
+      triggerBlink(80)
+    },
+  }
+
+  const microFunc = microExpressions[emotionCategory] || (() => {})
+  microFunc()
+}
+
+function triggerSlowBlink(duration = 200) {
+  triggerBlink(duration)
+}
+
+function triggerQuickBlink() {
+  if (!model || !model.internalModel) return
+
+  try {
+    const eyeParam = model.internalModel.coreModel?.getParamIndex('PARAM_EYE_OPEN_Y') ?? -1
+    if (eyeParam !== -1) {
+      model.internalModel.coreModel.setParamFloat(eyeParam, 0)
+      setTimeout(() => {
+        model.internalModel.coreModel.setParamFloat(eyeParam, 1)
+      }, 50)
+    }
+  } catch (e) {
+    console.warn('Quick blink failed:', e)
+  }
+}
+
+function triggerHeadNod() {
+  try {
+    playMotion('flick_head')
+  } catch (e) {
+    console.warn('Head nod failed:', e)
+  }
+}
+
+// ========== MOTION LAYERING ==========
+const motionMap = {
+  f02: { motions: ['tap_body', 'idle'], weight: 0.7 }, // Happy - playful
+  f03: { motions: ['idle'], weight: 0.3 }, // Sad - subtle
+  f04: { motions: ['flick_head', 'shake'], weight: 0.6 }, // Surprised - expressive
+  f01: { motions: ['idle'], weight: 0.2 }, // Neutral - minimal
+}
+
+async function playEmotionalResponse(expressionKey, intensity = 1.0) {
+  const config = motionMap[expressionKey] || motionMap.f01
+
+  // Queue expression change dengan smooth transition
+  queueExpression(expressionKey, 300)
+
+  // Play gesture jika intensity cukup tinggi
+  if (intensity > 0.6 && config.motions.length > 0) {
+    const motionIndex = Math.floor(Math.random() * config.motions.length)
+    try {
+      playMotion(config.motions[motionIndex])
+    } catch (e) {
+      console.warn('Motion play failed:', e)
+    }
+  }
+
+  // Trigger micro-expression jika intensity tinggi
+  if (intensity > 0.8) {
+    const emotionMap = {
+      f02: 'positive_high',
+      f03: 'negative_high',
+      f04: 'curious',
+      f01: 'default',
+    }
+    addMicroExpression(emotionMap[expressionKey] || 'default')
+  }
+}
+
+// ========== SCRIPT LOADING ==========
 function loadScript(url) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${url}"]`)) {
@@ -231,30 +564,7 @@ async function ensureDependencies() {
   if (!PIXI || !live2d) throw new Error('PIXI or pixi-live2d-display failed to load')
 }
 
-// ===== LIVE2D SETUP =====
-// function makeDraggable(m) {
-//   m.buttonMode = true
-//   const onDown = (e) => {
-//     m.dragging = true
-//     m._pointerX = e.data.global.x - m.x
-//     m._pointerY = e.data.global.y - m.y
-//   }
-//   const onMove = (e) => {
-//     if (m.dragging) {
-//       m.position.x = e.data.global.x - m._pointerX
-//       m.position.y = e.data.global.y - m._pointerY
-//     }
-//   }
-//   const onUp = () => (m.dragging = false)
-
-//   m.on('pointerdown', onDown)
-//   m.on('pointermove', onMove)
-//   m.on('pointerup', onUp)
-//   m.on('pointerupoutside', onUp)
-
-//   m._live2d_listeners = { onDown, onMove, onUp }
-// }
-
+// ========== LIVE2D SETUP & UTILITIES ==========
 function addFrame(m) {
   const fg = PIXI.Sprite.from(PIXI.Texture.WHITE)
   fg.width = m.internalModel.width
@@ -272,92 +582,40 @@ function addHitAreaFrames(m) {
   hitAreaFrames.visible = showHitAreaFrames.value
 }
 
-// ===== LIP SYNC SIMULATION =====
-function startLipSync() {
-  if (lipSyncInterval) return
-
-  isSpeaking.value = true
-
-  lipSyncInterval = setInterval(() => {
-    if (model && model.internalModel) {
-      try {
-        if (model.internalModel.coreModel) {
-          const mouthParam = model.internalModel.coreModel.getParamIndex('PARAM_MOUTH_OPEN_Y')
-          if (mouthParam !== -1) {
-            const randomValue = Math.random() * 0.8 + 0.2
-            model.internalModel.coreModel.setParamFloat(mouthParam, randomValue)
-          }
-        } else if (model.internalModel.setParameterValueById) {
-          model.internalModel.setParameterValueById('ParamMouthOpenY', Math.random() * 0.8 + 0.2)
-        }
-      } catch (e) {
-        console.warn('Lip sync parameter not found:', e)
-      }
-    }
-  }, 100)
-}
-
-function stopLipSync() {
-  if (lipSyncInterval) {
-    clearInterval(lipSyncInterval)
-    lipSyncInterval = null
-  }
-
-  isSpeaking.value = false
-
-  if (model && model.internalModel) {
-    try {
-      if (model.internalModel.coreModel) {
-        const mouthParam = model.internalModel.coreModel.getParamIndex('PARAM_MOUTH_OPEN_Y')
-        if (mouthParam !== -1) {
-          model.internalModel.coreModel.setParamFloat(mouthParam, 0)
-        }
-      } else if (model.internalModel.setParameterValueById) {
-        model.internalModel.setParameterValueById('ParamMouthOpenY', 0)
-      }
-    } catch (e) {
-      // ignore
-    }
-  }
-}
-
-// ===== EXPRESSION CONTROL =====
-function setExpression(expressionName) {
+function setExpressionDirect(expressionName) {
   if (!model) return
 
   try {
-    currentExpression.value = expressionName
-
-    if (expressionName === 'default') {
+    if (expressionName === 'default' || expressionName === 'f01') {
       model.expression()
     } else {
       model.expression(expressionName)
     }
   } catch (e) {
+    console.warn('Expression setting failed:', e)
     model.expression()
   }
 }
 
-function detectExpression(text) {
-  const lowerText = text.toLowerCase()
+function playMotion(motionName) {
+  if (!model) return
 
-  for (const [expression, keywords] of Object.entries(expressionMap)) {
-    if (keywords.some((keyword) => lowerText.includes(keyword))) {
-      return expression
-    }
+  try {
+    model.motion(motionName)
+  } catch (e) {
+    console.warn('Motion failed:', e)
   }
-
-  return 'default'
 }
 
+// ========== MAIN INTERACTION HANDLER ==========
 const onSubmit = async () => {
   if (prompt.value.trim() === '' || isTyping.value) return
 
   const userMessage = prompt.value
 
-  // 🦀 WASM-powered mood detection
-  await answersStore.adjustMoodContext(userMessage)
-  console.log('Current mood:', answersStore.currentMood)
+  // Get detailed emotion analysis dari user input (HANYA SEKALI)
+  const moodData = await answersStore.adjustMoodContext(userMessage)
+  emotionIntensity.value = moodData.emotion.intensity
 
   answersStore.addAnswer('user', userMessage)
   prompt.value = ''
@@ -365,19 +623,33 @@ const onSubmit = async () => {
   isTyping.value = true
 
   try {
-    const response = await getRespondAnswer(answersStore.getMessagesWithMood())
+    console.log('📊 Mood updated:', moodData.mood, 'Intensity:', moodData.emotion.intensity)
+
+    // Build dynamic system prompt based on mood
+    const messagesWithDynamicPrompt = answersStore.getMessagesWithMood()
+    console.log('🎯 System prompt updated with context')
+
+    // Call Groq dengan dynamic prompt
+    const response = await getRespondAnswer(messagesWithDynamicPrompt)
     let assistantMessage = response.choices[0].message.content
 
-    // 🦀 WASM-powered humanize
+    // Humanize response
     assistantMessage = await humanizeResponse(assistantMessage)
 
-    // 🦀 WASM-powered expression detection (sentiment-aware)
-    const detectedExpression = await answersStore.detectExpression(assistantMessage)
-    setExpression(detectedExpression)
+    // Get advanced expression detection dengan blending info
+    expressionBlend.value = await answersStore.detectExpressionAdvanced(assistantMessage)
+    emotionIntensity.value = expressionBlend.value.intensity
 
-    startLipSync()
+    console.log('🎭 Expression blend:', expressionBlend.value)
 
-    const speakingDuration = Math.min(assistantMessage.length * 50, 3000)
+    // Play emotional response dengan motion layering
+    await playEmotionalResponse(expressionBlend.value.primary, expressionBlend.value.blendStrength)
+
+    // Start advanced lip-sync dengan optimized duration
+    const speakingDuration = calculateOptimalLipSyncDuration(assistantMessage)
+    const wordCount = assistantMessage.trim().split(/\s+/).length
+    console.log(`🎙️ Lip sync duration: ${speakingDuration.toFixed(0)}ms for ${wordCount} words`)
+    startLipSyncAdvanced(speakingDuration, expressionBlend.value.intensity)
 
     setTimeout(
       () => {
@@ -385,7 +657,7 @@ const onSubmit = async () => {
         isTyping.value = false
 
         setTimeout(() => {
-          stopLipSync()
+          stopLipSyncAdvanced()
         }, 500)
       },
       Math.max(speakingDuration, 1000),
@@ -393,19 +665,52 @@ const onSubmit = async () => {
   } catch (error) {
     console.error('Error:', error)
     isTyping.value = false
-    stopLipSync()
+    stopLipSyncAdvanced()
 
-    // 🦀 Use WASM offline response
+    showToast(`⚠️ ${error.message || 'Connection error'}`, 'warning', 3000)
+
     const offlineMessage = await answersStore.getOfflineResponse()
-    answersStore.addAnswer('assistant', 'Ups, connection error nih. Coba lagi ya?')
-    setExpression('surprised')
+    answersStore.addAnswer('assistant', offlineMessage)
+
+    // Show surprised expression on error
+    await playEmotionalResponse('f04', 0.7)
   }
 }
 
+// ========== ANIMATION LOOP ==========
+function startAnimationLoop() {
+  function loop() {
+    updateExpressions()
+    animationFrameId = requestAnimationFrame(loop)
+  }
+  loop()
+}
+
+// ========== LIFECYCLE ==========
 onMounted(async () => {
-  // Initialize WASM first
+  // Initialize WASM
   await answersStore.initializeWasm()
-  console.log('WASM enabled:', answersStore.wasmEnabled)
+  console.log('✅ WASM enabled:', answersStore.wasmEnabled)
+
+  // ========== MONITOR WASM STATUS ==========
+  watch(
+    () => answersStore.wasmEnabled,
+    (enabled) => {
+      if (!enabled) {
+        showToast('⚠️ Emotion detection offline, using basic analysis', 'warning', 3000)
+      } else {
+        showToast('✅ Emotion detection enabled', 'success', 2000)
+      }
+    },
+  )
+
+  // ========== LOAD MOOD PROFILE ==========
+  answersStore.sessionStartTime = Date.now()
+  await answersStore.loadMoodProfile()
+  console.log('📊 Session mood profile initialized')
+
+  // Start animation loop
+  startAnimationLoop()
 
   const savedTopics = sessionStorage.getItem('mira_topics')
   if (savedTopics) {
@@ -434,7 +739,6 @@ onMounted(async () => {
     model.x = window.innerWidth / 2 - model.width / 2
     model.y = window.innerHeight * 0.05
 
-    // makeDraggable(model)
     addFrame(model)
     addHitAreaFrames(model)
     model.interactive = true
@@ -442,10 +746,10 @@ onMounted(async () => {
     model.on('hit', (hitAreas) => {
       if (hitAreas.includes('body') || hitAreas.includes('Body')) {
         try {
-          model.motion('tap_body')
-          setExpression('happy')
+          playMotion('tap_body')
+          queueExpression('f02', 200)
         } catch (e) {
-          model.motion()
+          console.warn('Hit interaction failed:', e)
         }
       }
       if (hitAreas.includes('head') || hitAreas.includes('Head')) {
@@ -484,16 +788,17 @@ watch(
   { deep: true },
 )
 
-onBeforeUnmount(() => {
-  stopLipSync()
+onBeforeUnmount(async () => {
+  await answersStore.saveMoodProfile()
+  console.log('💾 Mood profile saved on exit')
+
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId)
+  }
+
+  stopLipSyncAdvanced()
 
   if (model) {
-    if (model._live2d_listeners) {
-      model.off('pointerdown', model._live2d_listeners.onDown)
-      model.off('pointermove', model._live2d_listeners.onMove)
-      model.off('pointerup', model._live2d_listeners.onUp)
-      model.off('pointerupoutside', model._live2d_listeners.onUp)
-    }
     try {
       model.destroy({ children: true, texture: true, baseTexture: true })
     } catch (e) {
@@ -507,7 +812,6 @@ onBeforeUnmount(() => {
   }
 })
 
-// Watch untuk debug controls
 watch(showModelFrames, (v) => {
   if (model?._live2d_frame) model._live2d_frame.visible = v
 })
@@ -516,7 +820,6 @@ watch(showHitAreaFrames, (v) => {
   if (model?._live2d_hitAreaFrames) model._live2d_hitAreaFrames.visible = v
 })
 
-// Auto scroll history saat dibuka
 watch(showHistory, async (newVal) => {
   if (newVal) {
     await nextTick()
@@ -529,7 +832,6 @@ watch(showHistory, async (newVal) => {
 function handleScoreUpdate(score) {
   console.log('🎮 Game score:', score)
 
-  // Optional: MIRA bisa kasih komen soal score
   if (score.streak >= 3) {
     answersStore.addAnswer('assistant', `Wah streak ${score.streak}! Kamu jago banget! 🔥`)
   }
@@ -910,6 +1212,64 @@ function handleScoreUpdate(score) {
       color: var(--bg-color);
       border-bottom-right-radius: 4px;
     }
+  }
+
+  // ===== TOAST NOTIFICATIONS =====
+  &__toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    z-index: 1000;
+    backdrop-filter: blur(10px);
+    animation: slideUp 0.3s ease;
+
+    &--success {
+      background: rgba(34, 197, 94, 0.9);
+      border-left: 4px solid #22c55e;
+    }
+
+    &--warning {
+      background: rgba(234, 179, 8, 0.9);
+      border-left: 4px solid #eab308;
+    }
+
+    &--error {
+      background: rgba(239, 68, 68, 0.9);
+      border-left: 4px solid #ef4444;
+    }
+
+    &--info {
+      background: rgba(59, 130, 246, 0.9);
+      border-left: 4px solid #3b82f6;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  }
+
+  .toast-slide-enter-active,
+  .toast-slide-leave-active {
+    transition: all 0.3s ease;
+  }
+
+  .toast-slide-enter-from,
+  .toast-slide-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
   }
 }
 

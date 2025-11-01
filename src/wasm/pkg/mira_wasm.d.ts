@@ -6,54 +6,32 @@ export class MiraCore {
   free(): void;
   [Symbol.dispose](): void;
   constructor();
-  /**
-   * Preprocess user input: sanitize, tokenize, count words
-   */
   preprocess_input(input: string): any;
+  calculate_sentiment_advanced(text: string): any;
   /**
-   * Calculate sentiment score from text
+   * Legacy method for backward compatibility
    */
   calculate_sentiment(text: string): number;
-  /**
-   * Detect mood with caching and sentiment analysis
-   */
   detect_mood(user_input: string): string;
-  /**
-   * Get dominant mood across session
-   */
   get_dominant_mood(): string;
-  /**
-   * Calculate mood transition based on sentiment
-   */
   calculate_mood_transition(current_mood: string, sentiment_score: number): string;
-  /**
-   * Humanize AI response (remove formal language)
-   */
-  humanize_response(response: string): string;
-  /**
-   * Detect expression from text for Live2D (with sentiment awareness)
-   */
   detect_expression(text: string): string;
   /**
-   * Build conversation context summary
+   * Advanced expression detection dengan secondary emotion
    */
+  detect_expression_with_intensity(text: string): any;
+  /**
+   * Map emotion to Live2D expression with blending
+   */
+  blend_expressions(emotion_score: number, context: string): any;
+  humanize_response(response: string): string;
   build_conversation_context(messages: string[]): string;
-  /**
-   * Extract key topics from messages
-   */
   extract_topics(messages: string[]): string[];
-  /**
-   * Generate mini-game riddle
-   */
   generate_riddle(): any;
-  /**
-   * Get offline fallback response
-   */
   get_offline_response(): string;
-  /**
-   * Interpolate between expressions for smooth transitions
-   */
-  interpolate_expression(current: string, target: string, progress: number): string;
+  interpolate_expression(_current: string, target: string, _progress: number): string;
+  create_expression_interpolator(from: string, to: string, duration_ms: bigint): any;
+  interpolate_expression_smooth(_from: string, _to: string, progress: number): number;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -63,17 +41,22 @@ export interface InitOutput {
   readonly __wbg_miracore_free: (a: number, b: number) => void;
   readonly miracore_new: () => number;
   readonly miracore_preprocess_input: (a: number, b: number, c: number) => any;
+  readonly miracore_calculate_sentiment_advanced: (a: number, b: number, c: number) => any;
   readonly miracore_calculate_sentiment: (a: number, b: number, c: number) => number;
   readonly miracore_detect_mood: (a: number, b: number, c: number) => [number, number];
   readonly miracore_get_dominant_mood: (a: number) => [number, number];
   readonly miracore_calculate_mood_transition: (a: number, b: number, c: number, d: number) => [number, number];
-  readonly miracore_humanize_response: (a: number, b: number, c: number) => [number, number];
   readonly miracore_detect_expression: (a: number, b: number, c: number) => [number, number];
+  readonly miracore_detect_expression_with_intensity: (a: number, b: number, c: number) => any;
+  readonly miracore_blend_expressions: (a: number, b: number, c: number, d: number) => any;
+  readonly miracore_humanize_response: (a: number, b: number, c: number) => [number, number];
   readonly miracore_build_conversation_context: (a: number, b: number, c: number) => [number, number];
   readonly miracore_extract_topics: (a: number, b: number, c: number) => [number, number];
   readonly miracore_generate_riddle: (a: number) => any;
   readonly miracore_get_offline_response: (a: number) => [number, number];
   readonly miracore_interpolate_expression: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+  readonly miracore_create_expression_interpolator: (a: number, b: number, c: number, d: number, e: number, f: bigint) => any;
+  readonly miracore_interpolate_expression_smooth: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
   readonly quick_mood_check: (a: number, b: number) => [number, number];
   readonly polish_text: (a: number, b: number) => [number, number];
   readonly __wbindgen_malloc: (a: number, b: number) => number;
