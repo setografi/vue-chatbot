@@ -4,12 +4,6 @@ use regex::Regex;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
-#[allow(dead_code)]
-expression_history: Vec<(String, i32)>,
-
-#[allow(dead_code)]
-secondary: String,
-
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SentimentWord {
     pub base_score: i32,

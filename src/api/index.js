@@ -9,7 +9,7 @@ const groq = new Groq({
 export async function getRespondAnswer(messages) {
   try {
     const response = await groq.chat.completions.create({
-      model: 'openai/gpt-oss-120b',
+      model: 'openai/gpt-oss-20b',
       messages: messages,
       temperature: 0.75,
       top_p: 0.9,

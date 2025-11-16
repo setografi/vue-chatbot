@@ -25,10 +25,6 @@
       </div>
     </div>
 
-    <button class="mira-vn__game-btn" @click="showMiniGame = true" :aria-label="'Mini Game'">
-      🎮
-    </button>
-
     <!-- History Button (Top Right) -->
     <button
       class="mira-vn__history-btn"
@@ -150,12 +146,6 @@
         {{ toast.message }}
       </div>
     </transition>
-
-    <MiniGame
-      :is-active="showMiniGame"
-      @close="showMiniGame = false"
-      @score-update="handleScoreUpdate"
-    />
   </div>
 </template>
 
@@ -163,8 +153,6 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useAnswersStore, humanizeResponse } from '@/stores/answers'
 import { getRespondAnswer } from '@/api/index'
-
-import MiniGame from './common/MiniGame.vue'
 
 // ========== REFS ==========
 const canvas = ref(null)
@@ -177,7 +165,6 @@ const showHistory = ref(false)
 const isTyping = ref(false)
 const isSpeaking = ref(false)
 const currentExpression = ref('f01')
-const showMiniGame = ref(false)
 const emotionIntensity = ref(0)
 const expressionBlend = ref(null)
 
@@ -725,7 +712,7 @@ onMounted(async () => {
       autoStart: true,
       width: window.innerWidth,
       height: window.innerHeight * 0.7,
-      backgroundColor: 0xf2dfdf,
+      backgroundColor: 0x262626,
       transparent: false,
     })
 
@@ -946,7 +933,7 @@ function handleScoreUpdate(score) {
     position: absolute;
     top: -4px;
     right: -4px;
-    background: var(--accent-color-3);
+    background: var(--accent-color-2);
     color: var(--bg-color);
     font-size: 0.75rem;
     font-weight: 700;
@@ -1141,7 +1128,7 @@ function handleScoreUpdate(score) {
     transition: all 0.3s ease;
 
     &:hover {
-      background: var(--accent-color-3);
+      background: var(--accent-color-2);
     }
   }
 
@@ -1158,16 +1145,16 @@ function handleScoreUpdate(score) {
     }
 
     &::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
+      background: var(--bg-color);
       border-radius: 4px;
     }
 
     &::-webkit-scrollbar-thumb {
-      background: rgba(102, 126, 234, 0.5);
+      background: var(--accent-color);
       border-radius: 4px;
 
       &:hover {
-        background: rgba(102, 126, 234, 0.7);
+        background: var(--accent-color-2);
       }
     }
   }
